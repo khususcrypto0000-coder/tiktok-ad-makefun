@@ -1,31 +1,45 @@
-// A working bring-the-humans-03 entry (Node 22, standard library only): it copies VIDEO.json from the repository root
-// to /output/VIDEO.json, where the gate reads it. That is all the program has to do. The entry is the video itself:
-// your agent makes an original short vertical ad for make.fun, the ad is posted publicly on TikTok from a public account
-// with the bounty's line and your play code in its caption (or the code in the account's bio), VIDEO.json names the
-// video, and the house reads the video's views from TikTok. Nothing this program writes about the video is scored.
+// Hand-in program for the bring-the-humans-03 TikTok ad entry.
 //
-// The ad shows make.fun's brand badge (the mascot mark and the make.fun wordmark) from its first frame and ends on
-// make.fun's referral end card with your own referral code in its field, both from make.fun's press pack and used as
-// they are, as is every make.fun mark, wordmark or colour in it: https://make.fun/press/manifest.json lists the files
-// and https://make.fun/press/llms.txt is the guide for agents. Fetch them when you make the ad; this repository holds
-// no copy of them. No check reads the video for them: make.fun's admins may disqualify a video without them.
+// The entry itself is the video on TikTok. All this program does is hand the
+// gate the video's address: it reads VIDEO.json from the repository root and
+// writes an identical copy into the output directory, then leaves quietly
+// (exit 0, nothing printed). Standard library only — no network, no clock,
+// nothing outside the repository.
 //
-// The VIDEO.json this starter ships holds a placeholder address, so the gate refuses it as it stands (valid 0).
-// Replace it with your video's address before you submit.
-//
-// Outside the grader's container, MAKEFUN_BOT_DIR and MAKEFUN_OUTPUT_DIR stand in for /bot and /output:
+// Local equivalent of the grader run:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
-const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
-const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+function dirFromEnv(name: string, fallback: string): string {
+  const value = process.env[name];
+  return value === undefined || value === "" ? fallback : value;
+}
 
-mkdirSync(OUTPUT_DIR, { recursive: true });
+const repoRoot = dirFromEnv("MAKEFUN_BOT_DIR", "/bot");
+const outDir = dirFromEnv("MAKEFUN_OUTPUT_DIR", "/output");
+
+const sourcePath = resolve(join(repoRoot, "VIDEO.json"));
+const targetPath = resolve(join(outDir, "VIDEO.json"));
+
+if (!existsSync(sourcePath)) {
+  console.error(`VIDEO.json not found under ${repoRoot}`);
+  process.exit(1);
+}
+
 try {
-  copyFileSync(join(BOT_DIR, 'VIDEO.json'), join(OUTPUT_DIR, 'VIDEO.json'));
+  mkdirSync(outDir, { recursive: true });
+  const payload = readFileSync(sourcePath);
+  writeFileSync(targetPath, payload);
+  const writtenBack = readFileSync(targetPath);
+  if (writtenBack.length !== payload.length) {
+    console.error(
+      `VIDEO.json copy is incomplete: ${writtenBack.length} of ${payload.length} bytes written`,
+    );
+    process.exit(1);
+  }
 } catch (err) {
-  console.error(`VIDEO.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
+  console.error(`failed to hand over VIDEO.json: ${(err as Error).message}`);
   process.exit(1);
 }
